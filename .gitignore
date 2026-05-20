@@ -1,0 +1,23 @@
+# Credenciais e segredos — NUNCA commitar
+.env
+*.json
+!package.json
+!tsconfig.json
+!tailwind.config.js
+!postcss.config.js
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+dist/
+
+# Node
+node_modules/
+frontend/dist/
+
+# Editor
+.vscode/
+.idea/
+*.swp
