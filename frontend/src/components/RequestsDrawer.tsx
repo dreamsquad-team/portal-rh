@@ -9,22 +9,20 @@ interface Props {
 
 function formatDate(d: string | null) {
   if (!d) return "—";
-  try {
-    return format(parseISO(d), "dd/MM/yyyy");
-  } catch {
-    return d;
-  }
+  try { return format(parseISO(d), "dd/MM/yyyy"); }
+  catch { return d; }
 }
 
 function RequestRow({ req }: { req: VacationRequest }) {
   return (
-    <div className="border rounded-lg p-4 space-y-2">
+    <div className="rounded-xl p-4 space-y-2" style={{ border: "1px solid var(--color-cinza-mid)" }}>
       <div className="flex items-center justify-between">
         <a
           href={req.jira_url}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-blue-600 hover:underline font-medium text-sm"
+          className="text-sm font-semibold font-mono hover:underline"
+          style={{ color: "var(--color-primary)" }}
         >
           {req.issue_key}
         </a>
@@ -32,29 +30,21 @@ function RequestRow({ req }: { req: VacationRequest }) {
       </div>
 
       <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-        <span className="text-gray-500">Início</span>
-        <span>{formatDate(req.start_date)}</span>
-
-        <span className="text-gray-500">Fim</span>
-        <span>{formatDate(req.end_date)}</span>
-
-        <span className="text-gray-500">Dias tirados</span>
-        <span>{req.days_taken ?? "—"}</span>
-
-        <span className="text-gray-500">Saldo</span>
-        <span className="font-semibold">
-          {req.balance !== null ? req.balance : "—"}
-        </span>
-
-        {req.contract_type && (
+        {[
+          ["Início",       formatDate(req.start_date)],
+          ["Fim",          formatDate(req.end_date)],
+          ["Dias tirados", req.days_taken ?? "—"],
+          ["Saldo",        req.balance !== null ? req.balance : "—"],
+          ...(req.contract_type ? [["Contrato", req.contract_type]] : []),
+          ["Solicitado em", formatDate(req.created_at)],
+        ].map(([label, value], i) => (
           <>
-            <span className="text-gray-500">Contrato</span>
-            <span>{req.contract_type}</span>
+            <span key={`l${i}`} style={{ color: "var(--color-text-muted)" }}>{label}</span>
+            <span key={`v${i}`} className={label === "Saldo" ? "font-semibold" : ""} style={{ color: "var(--color-text)" }}>
+              {value}
+            </span>
           </>
-        )}
-
-        <span className="text-gray-500">Solicitado em</span>
-        <span>{formatDate(req.created_at)}</span>
+        ))}
       </div>
     </div>
   );
@@ -65,51 +55,48 @@ export function RequestsDrawer({ employee, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex">
-      <div className="flex-1 bg-black/40" onClick={onClose} />
-      <div className="w-full max-w-md bg-white shadow-xl flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b">
+      <div className="flex-1 bg-black/30" onClick={onClose} />
+      <div className="w-full max-w-md flex flex-col overflow-hidden shadow-2xl" style={{ backgroundColor: "#fff" }}>
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid var(--color-cinza-mid)" }}>
           <div>
-            <h2 className="font-semibold text-gray-900">{employee.name}</h2>
-            <p className="text-xs text-gray-500">{employee.email}</p>
+            <h2 className="font-semibold text-sm" style={{ color: "var(--color-text)" }}>{employee.name}</h2>
+            <p className="text-xs mt-0.5" style={{ color: "var(--color-text-muted)" }}>{employee.email}</p>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+            className="text-2xl leading-none w-8 h-8 flex items-center justify-center rounded-lg transition-colors"
+            style={{ color: "var(--color-text-muted)" }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--color-cinza)")}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
           >
             &times;
           </button>
         </div>
 
-        <div className="px-6 py-4 border-b bg-gray-50 grid grid-cols-3 gap-4 text-center">
-          <div>
-            <p className="text-2xl font-bold text-gray-800">
-              {employee.total_days_taken}
-            </p>
-            <p className="text-xs text-gray-500">Dias tirados</p>
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-gray-800">
-              {employee.current_balance ?? "—"}
-            </p>
-            <p className="text-xs text-gray-500">Saldo atual</p>
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-gray-800">
-              {employee.requests.length}
-            </p>
-            <p className="text-xs text-gray-500">Solicitações</p>
-          </div>
+        {/* KPIs */}
+        <div className="grid grid-cols-3 gap-px" style={{ backgroundColor: "var(--color-cinza-mid)" }}>
+          {[
+            ["Dias tirados", employee.total_days_taken],
+            ["Saldo atual",  employee.current_balance ?? "—"],
+            ["Solicitações", employee.requests.length],
+          ].map(([label, value]) => (
+            <div key={label as string} className="text-center py-4 px-2" style={{ backgroundColor: "var(--color-cinza)" }}>
+              <p className="text-2xl font-bold" style={{ color: "var(--color-primary)" }}>{value}</p>
+              <p className="text-xs mt-0.5" style={{ color: "var(--color-text-muted)" }}>{label}</p>
+            </div>
+          ))}
         </div>
 
+        {/* Requests list */}
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
           {employee.requests.length === 0 ? (
-            <p className="text-gray-500 text-sm text-center py-8">
+            <p className="text-sm text-center py-10" style={{ color: "var(--color-text-muted)" }}>
               Nenhuma solicitação encontrada.
             </p>
           ) : (
-            employee.requests.map((req) => (
-              <RequestRow key={req.issue_key} req={req} />
-            ))
+            employee.requests.map((req) => <RequestRow key={req.issue_key} req={req} />)
           )}
         </div>
       </div>

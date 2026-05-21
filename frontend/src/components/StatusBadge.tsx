@@ -3,16 +3,19 @@ interface Props {
   category: string;
 }
 
-const categoryStyles: Record<string, string> = {
-  new: "bg-blue-100 text-blue-800",
-  indeterminate: "bg-yellow-100 text-yellow-800",
-  done: "bg-green-100 text-green-800",
+const categoryStyles: Record<string, { bg: string; color: string }> = {
+  new:           { bg: "#fff0f5", color: "#ae275c" },
+  indeterminate: { bg: "#fff8e6", color: "#b45309" },
+  done:          { bg: "#ecfdf5", color: "#047857" },
 };
 
 export function StatusBadge({ status, category }: Props) {
-  const style = categoryStyles[category] ?? "bg-gray-100 text-gray-700";
+  const s = categoryStyles[category] ?? { bg: "#f3f4f5", color: "#574146" };
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${style}`}>
+    <span
+      className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
+      style={{ backgroundColor: s.bg, color: s.color }}
+    >
       {status}
     </span>
   );

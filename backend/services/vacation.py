@@ -1,69 +1,146 @@
-from datetime import date, timedelta
+import unicodedata
+from datetime import date
 from typing import Optional
 
 
-def years_of_service(admission_date: Optional[str], today: Optional[date] = None) -> Optional[float]:
+def normalize(name: str) -> str:
+    nfkd = unicodedata.normalize("NFKD", name.lower().strip())
+    return "".join(c for c in nfkd if not unicodedata.combining(c))
+
+
+def _years(admission_date: Optional[str], today: date) -> Optional[float]:
     if not admission_date:
         return None
     try:
         start = date.fromisoformat(admission_date)
+        return round((today - start).days / 365.25, 2)
     except ValueError:
         return None
-    ref = today or date.today()
-    delta = ref - start
-    return round(delta.days / 365.25, 2)
 
 
-def completed_one_year(admission_date: Optional[str], today: Optional[date] = None) -> bool:
-    years = years_of_service(admission_date, today)
-    return years is not None and years >= 1.0
-
-
-def next_anniversary(admission_date: Optional[str], today: Optional[date] = None) -> Optional[str]:
-    """Returns the date of the next 1-year anniversary (or current if not yet reached)."""
+def _next_anniversary(admission_date: Optional[str], today: date) -> Optional[str]:
     if not admission_date:
         return None
     try:
         start = date.fromisoformat(admission_date)
+        years_elapsed = (today - start).days // 365
+        for delta in (years_elapsed + 1, years_elapsed + 2):
+            try:
+                candidate = start.replace(year=start.year + delta)
+                if candidate > today:
+                    return candidate.isoformat()
+            except ValueError:
+                # Feb 29 edge case
+                candidate = date(start.year + delta, start.month + 1, 1)
+                if candidate > today:
+                    return candidate.isoformat()
     except ValueError:
         return None
-    ref = today or date.today()
-    years_elapsed = (ref - start).days // 365
-    candidate = date(start.year + years_elapsed + 1, start.month, start.day)
-    if candidate <= ref:
-        candidate = date(start.year + years_elapsed + 2, start.month, start.day)
-    return candidate.isoformat()
+    return None
+
+
+def _first_last(name: str) -> tuple[str, str]:
+    parts = name.split()
+    return (parts[0], parts[-1]) if len(parts) >= 2 else (name, name)
+
+
+def _find_sheet_match(name_key: str, sheet_employees: dict[str, dict]) -> dict:
+    # 1. Exact match
+    if name_key in sheet_employees:
+        return sheet_employees[name_key]
+
+    # 2. Username format: "marcus.virgilio" → "marcus virgilio"
+    clean = name_key.replace(".", " ")
+    if clean != name_key and clean in sheet_employees:
+        return sheet_employees[clean]
+
+    # 3. Substring match (e.g. "mateus fortunato" ⊂ "mateus fortunato santana")
+    for key in sheet_employees:
+        if key in name_key or name_key in key:
+            return sheet_employees[key]
+
+    # 4. First + last name match (e.g. "alesson caldeirao de moura" ↔ "alesson moura")
+    first_j, last_j = _first_last(clean)
+    candidates = [
+        data for key, data in sheet_employees.items()
+        if _first_last(key) == (first_j, last_j)
+    ]
+    if len(candidates) == 1:
+        return candidates[0]
+
+    return {}
+
+
+def _make_entry(name: str, email: str, admission: Optional[str], today: date) -> dict:
+    years = _years(admission, today)
+    return {
+        "name": name,
+        "email": email,
+        "admission_date": admission,
+        "years_of_service": years,
+        "completed_one_year": years is not None and years >= 1.0,
+        "next_anniversary": _next_anniversary(admission, today),
+        "has_open_request": False,
+        "current_balance": None,
+        "total_days_taken": 0,
+        "latest_request": None,
+        "requests": [],
+    }
 
 
 def merge_employee_data(jira_requests: list[dict], sheet_employees: dict[str, dict]) -> list[dict]:
-    """Groups Jira requests by employee and merges with Sheets data."""
+    """
+    Shows everyone: Sheets employees (even without Jira requests) +
+    Jira-only employees (ex-employees or not yet in Sheets).
+    Key is normalized name; email filled in from Jira when matched.
+    """
     today = date.today()
-    by_email: dict[str, dict] = {}
+    by_key: dict[str, dict] = {}
 
+    # Seed with all Sheets employees so they appear even without requests
+    for sheet_key, data in sheet_employees.items():
+        by_key[sheet_key] = _make_entry(data["name"], "", data.get("admission_date"), today)
+
+    # Process every Jira request
     for req in jira_requests:
         email = req["employee_email"].lower()
-        if email not in by_email:
-            sheet_data = sheet_employees.get(email, {})
-            admission = sheet_data.get("admission_date")
-            by_email[email] = {
-                "name": req["employee_name"],
-                "email": email,
-                "department": sheet_data.get("department", ""),
-                "position": sheet_data.get("position", ""),
-                "admission_date": admission,
-                "years_of_service": years_of_service(admission, today),
-                "completed_one_year": completed_one_year(admission, today),
-                "next_anniversary": next_anniversary(admission, today),
-                "requests": [],
+        name_key = normalize(req["employee_name"])
+        sheet_match = _find_sheet_match(name_key, sheet_employees)
+
+        # Which key to use: prefer the Sheets canonical name when matched
+        emp_key = normalize(sheet_match["name"]) if sheet_match else name_key
+
+        if emp_key not in by_key:
+            admission = sheet_match.get("admission_date") if sheet_match else None
+            by_key[emp_key] = _make_entry(req["employee_name"], email, admission, today)
+
+        emp = by_key[emp_key]
+
+        # Fill email from Jira when Sheets entry had none
+        if not emp["email"] and email:
+            emp["email"] = email
+
+        is_active = req["status_category"] in ("new", "indeterminate")
+        if is_active:
+            emp["has_open_request"] = True
+
+        if req["days_taken"]:
+            emp["total_days_taken"] += req["days_taken"]
+
+        if emp["latest_request"] is None or is_active:
+            emp["latest_request"] = {
+                "issue_key": req["issue_key"],
+                "status": req["status"],
+                "status_category": req["status_category"],
+                "start_date": req["start_date"],
+                "end_date": req["end_date"],
+                "days_taken": req["days_taken"],
+                "balance": req["balance"],
+                "jira_url": req["jira_url"],
             }
+            emp["current_balance"] = req["balance"]
 
-        entry = by_email[email]
-
-        # Keep most recent name from Jira if Sheets has none
-        if not entry["name"] and req["employee_name"]:
-            entry["name"] = req["employee_name"]
-
-        entry["requests"].append({
+        emp["requests"].append({
             "issue_key": req["issue_key"],
             "status": req["status"],
             "status_category": req["status_category"],
@@ -76,36 +153,4 @@ def merge_employee_data(jira_requests: list[dict], sheet_employees: dict[str, di
             "jira_url": req["jira_url"],
         })
 
-    # Add employees from Sheets who have no Jira requests yet
-    for email, data in sheet_employees.items():
-        if email not in by_email:
-            admission = data.get("admission_date")
-            by_email[email] = {
-                "name": data.get("name", ""),
-                "email": email,
-                "department": data.get("department", ""),
-                "position": data.get("position", ""),
-                "admission_date": admission,
-                "years_of_service": years_of_service(admission, today),
-                "completed_one_year": completed_one_year(admission, today),
-                "next_anniversary": next_anniversary(admission, today),
-                "requests": [],
-            }
-
-    result = sorted(by_email.values(), key=lambda e: e["name"].lower())
-
-    # Attach summary fields per employee
-    for emp in result:
-        reqs = emp["requests"]
-        active = [r for r in reqs if r["status_category"] in ("new", "indeterminate")]
-        done = [r for r in reqs if r["status_category"] == "done"]
-        current = active[0] if active else (done[0] if done else None)
-
-        emp["has_open_request"] = bool(active)
-        emp["current_balance"] = current["balance"] if current else None
-        emp["total_days_taken"] = sum(
-            r["days_taken"] for r in reqs if r["days_taken"] is not None
-        )
-        emp["latest_request"] = current
-
-    return result
+    return sorted(by_key.values(), key=lambda e: e["name"].lower())

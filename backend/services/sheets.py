@@ -1,8 +1,9 @@
+import unicodedata
 from datetime import date, datetime
 from typing import Optional
 import gspread
 from google.oauth2.service_account import Credentials
-from ..config import settings
+from config import settings
 
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
 
@@ -15,9 +16,9 @@ def _client() -> gspread.Client:
 
 
 def _parse_date(value: str) -> Optional[date]:
-    if not value:
+    if not value or value.strip() in ("", "—", "-"):
         return None
-    for fmt in ("%d/%m/%Y", "%Y-%m-%d", "%m/%d/%Y", "%d-%m-%Y"):
+    for fmt in ("%d/%m/%Y", "%Y-%m-%d", "%m/%d/%Y"):
         try:
             return datetime.strptime(value.strip(), fmt).date()
         except ValueError:
@@ -25,30 +26,36 @@ def _parse_date(value: str) -> Optional[date]:
     return None
 
 
+def normalize(name: str) -> str:
+    nfkd = unicodedata.normalize("NFKD", name.lower().strip())
+    return "".join(c for c in nfkd if not unicodedata.combining(c))
+
+
 def fetch_employees() -> dict[str, dict]:
-    """Returns a dict keyed by lowercase email with employee data from Sheets."""
+    """
+    Returns dict keyed by normalized name with admission date.
+    Row 1 = title, Row 2 = headers, Row 3+ = data.
+    """
     gc = _client()
     sheet = gc.open_by_key(settings.google_sheets_id).sheet1
-    rows = sheet.get_all_records()
+    all_values = sheet.get_all_values()
+
+    if len(all_values) < 3:
+        return {}
+
+    headers = [h.replace("\n", " ").strip() for h in all_values[1]]
 
     employees: dict[str, dict] = {}
-    for row in rows:
-        email = str(row.get("email", row.get("Email", row.get("e-mail", "")))).strip().lower()
-        if not email:
+    for row_values in all_values[2:]:
+        row = dict(zip(headers, row_values))
+        name = row.get("Colaborador", "").strip()
+        if not name:
             continue
-        admission_raw = str(row.get(
-            "data_admissao",
-            row.get("data admissão",
-            row.get("Data de Admissão",
-            row.get("admissao", ""))),
-        )).strip()
-        admission_date = _parse_date(admission_raw)
 
-        employees[email] = {
-            "name": str(row.get("nome", row.get("Nome", row.get("name", "")))).strip(),
-            "email": email,
+        admission_date = _parse_date(row.get("Data Início", ""))
+        employees[normalize(name)] = {
+            "name": name,
             "admission_date": admission_date.isoformat() if admission_date else None,
-            "department": str(row.get("departamento", row.get("Departamento", row.get("area", "")))).strip(),
-            "position": str(row.get("cargo", row.get("Cargo", row.get("position", "")))).strip(),
         }
+
     return employees

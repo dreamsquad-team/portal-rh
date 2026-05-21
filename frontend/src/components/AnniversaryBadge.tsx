@@ -8,14 +8,9 @@ interface Props {
   yearsOfService: number | null;
 }
 
-export function AnniversaryBadge({
-  admissionDate,
-  completedOneYear,
-  nextAnniversary,
-  yearsOfService,
-}: Props) {
+export function AnniversaryBadge({ admissionDate, completedOneYear, nextAnniversary, yearsOfService }: Props) {
   if (!admissionDate) {
-    return <span className="text-gray-400 text-sm">Sem data de admissão</span>;
+    return <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>Sem data de admissão</span>;
   }
 
   const admissionFormatted = format(parseISO(admissionDate), "dd/MM/yyyy");
@@ -24,11 +19,14 @@ export function AnniversaryBadge({
   if (completedOneYear) {
     return (
       <div>
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+        <span
+          className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
+          style={{ backgroundColor: "#ecfdf5", color: "#047857" }}
+        >
           Apto a tirar férias
         </span>
-        <p className="text-xs text-gray-500 mt-0.5">
-          Admissão: {admissionFormatted} &bull; {yearsLabel}
+        <p className="text-xs mt-0.5" style={{ color: "var(--color-text-muted)" }}>
+          {admissionFormatted} &bull; {yearsLabel}
         </p>
       </div>
     );
@@ -40,11 +38,14 @@ export function AnniversaryBadge({
 
   return (
     <div>
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">
+      <span
+        className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
+        style={{ backgroundColor: "#fff8e6", color: "#b45309" }}
+      >
         Menos de 1 ano
       </span>
-      <p className="text-xs text-gray-500 mt-0.5">
-        Admissão: {admissionFormatted}
+      <p className="text-xs mt-0.5" style={{ color: "var(--color-text-muted)" }}>
+        {admissionFormatted}
         {anniversaryFormatted && ` • 1 ano em ${anniversaryFormatted}`}
       </p>
     </div>

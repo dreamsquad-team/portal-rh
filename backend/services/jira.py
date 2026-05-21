@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from typing import Optional
 import httpx
-from ..config import settings
+from config import settings
 
 
 FIELDS = [

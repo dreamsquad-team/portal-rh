@@ -10,6 +10,7 @@ class Settings(BaseSettings):
 
     google_sheets_id: str
     google_credentials_file: str = "google-credentials.json"
+    google_oauth_client_id: str
 
     class Config:
         env_file = ".env"

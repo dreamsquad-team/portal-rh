@@ -5,6 +5,8 @@
 !tsconfig.json
 !tailwind.config.js
 !postcss.config.js
+!backend/users.json
+!frontend/.env
 
 # Python
 __pycache__/
