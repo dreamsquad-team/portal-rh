@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Sidebar } from "./components/Sidebar";
+import { Navbar } from "./components/Navbar";
 import { LoginPage } from "./pages/LoginPage";
 import { Home } from "./pages/Home";
 import { Dashboard } from "./pages/Dashboard";
@@ -40,8 +40,8 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      <Sidebar
+    <div className="flex flex-col h-screen overflow-hidden">
+      <Navbar
         active={page}
         onNavigate={(id) => navigate(id)}
         currentUser={currentUser}
