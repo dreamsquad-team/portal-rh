@@ -42,32 +42,88 @@ function NavBtn({ label, active, onClick, disabled }: NavBtnProps) {
   );
 }
 
-export function Navbar({ active, onNavigate, currentUser, onLogout }: Props) {
-  const [recessoOpen, setRecessoOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const isAdmin = currentUser.role === "admin";
-  const initials = currentUser.name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+interface DropdownItem { id: string; label: string }
 
-  const recessoItems = [
-    ...(isAdmin ? [
-      { id: "home",      label: "Dashboard" },
-      { id: "vacations", label: "Controle de Recesso" },
-    ] : []),
-    { id: "request", label: "Solicitar Recesso" },
-    { id: "my",      label: "Meus Recessos" },
-  ];
+interface NavDropdownProps {
+  label: string;
+  items: DropdownItem[];
+  active: string;
+  isActive: boolean;
+  onNavigate: (id: string) => void;
+}
 
-  const recessoActive = ["home", "vacations", "request", "my"].includes(active);
+function NavDropdown({ label, items, active, isActive, onNavigate }: NavDropdownProps) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setRecessoOpen(false);
-      }
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-0.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all"
+        style={{
+          backgroundColor: isActive ? "var(--color-primary)" : "transparent",
+          color: isActive ? "#fff" : "var(--color-text-mid)",
+        }}
+        onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = "var(--color-cinza)"; }}
+        onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = "transparent"; }}
+      >
+        {label}
+        <ChevronDown />
+      </button>
+
+      {open && (
+        <div
+          className="absolute left-0 top-full mt-1 rounded-xl shadow-lg border z-50 py-1 w-56"
+          style={{ backgroundColor: "#fff", borderColor: "var(--color-cinza-mid)" }}
+        >
+          {items.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => { onNavigate(item.id); setOpen(false); }}
+              className="w-full text-left px-4 py-2 text-sm transition-colors"
+              style={{
+                color: active === item.id ? "var(--color-primary)" : "var(--color-text)",
+                fontWeight: active === item.id ? 600 : 400,
+                backgroundColor: "transparent",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "var(--color-cinza)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function Navbar({ active, onNavigate, currentUser, onLogout }: Props) {
+  const isAdmin = currentUser.role === "admin";
+  const initials = currentUser.name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+
+  const recessoItems: DropdownItem[] = [
+    ...(isAdmin ? [{ id: "vacations", label: "Controle de Recesso" }] : []),
+    { id: "request", label: "Solicitar Recesso" },
+    { id: "my",      label: "Meus Recessos" },
+  ];
+
+  const adminItems: DropdownItem[] = [
+    { id: "admin",         label: "Acessos" },
+    { id: "colaboradores", label: "Gestão de Colaboradores" },
+  ];
+
+  const recessoActive = ["home", "vacations", "request", "my"].includes(active);
+  const adminActive   = ["admin", "colaboradores"].includes(active);
 
   return (
     <nav
@@ -75,59 +131,39 @@ export function Navbar({ active, onNavigate, currentUser, onLogout }: Props) {
       style={{ backgroundColor: "#fff", borderColor: "var(--color-cinza-mid)" }}
     >
       {/* Logo */}
-      <div className="mr-5 shrink-0">
+      <button
+        onClick={() => onNavigate("landing")}
+        className="mr-5 shrink-0 text-left transition-opacity hover:opacity-70"
+      >
         <p className="font-bold text-sm leading-tight" style={{ color: "var(--color-navy)" }}>Portal RH</p>
         <p className="text-xs leading-tight" style={{ color: "var(--color-text-muted)" }}>DreamSquad</p>
-      </div>
+      </button>
+
+      {/* Página Inicial */}
+      <NavBtn label="Página Inicial" active={active === "landing"} onClick={() => onNavigate("landing")} />
 
       {/* Recesso dropdown */}
-      <div className="relative" ref={dropdownRef}>
-        <button
-          onClick={() => setRecessoOpen((o) => !o)}
-          className="flex items-center gap-0.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all"
-          style={{
-            backgroundColor: recessoActive ? "var(--color-primary)" : "transparent",
-            color: recessoActive ? "#fff" : "var(--color-text-mid)",
-          }}
-          onMouseEnter={(e) => { if (!recessoActive) e.currentTarget.style.backgroundColor = "var(--color-cinza)"; }}
-          onMouseLeave={(e) => { if (!recessoActive) e.currentTarget.style.backgroundColor = "transparent"; }}
-        >
-          Recesso
-          <ChevronDown />
-        </button>
+      <NavDropdown
+        label="Recesso"
+        items={recessoItems}
+        active={active}
+        isActive={recessoActive}
+        onNavigate={onNavigate}
+      />
 
-        {recessoOpen && (
-          <div
-            className="absolute left-0 top-full mt-1 rounded-xl shadow-lg border z-50 py-1 w-52"
-            style={{ backgroundColor: "#fff", borderColor: "var(--color-cinza-mid)" }}
-          >
-            {recessoItems.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => { onNavigate(item.id); setRecessoOpen(false); }}
-                className="w-full text-left px-4 py-2 text-sm transition-colors"
-                style={{
-                  color: active === item.id ? "var(--color-primary)" : "var(--color-text)",
-                  fontWeight: active === item.id ? 600 : 400,
-                  backgroundColor: "transparent",
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "var(--color-cinza)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+      <NavBtn label="Onboarding"  active={active === "onboarding"} onClick={() => onNavigate("onboarding")} />
+      <NavBtn label="Incentivos"  active={active === "incentivos"} onClick={() => onNavigate("incentivos")} />
+      <NavBtn label="Comunicados" active={active === "comunicados"} onClick={() => onNavigate("comunicados")} />
 
-      <NavBtn label="Onboarding" active={false} onClick={() => {}} disabled />
-      <NavBtn label="Benefícios" active={false} onClick={() => {}} disabled />
-      <NavBtn label="Comunicados" active={false} onClick={() => {}} disabled />
-
-      {/* Admin: Administrativo */}
+      {/* Admin: Administrativo dropdown */}
       {isAdmin && (
-        <NavBtn label="Administrativo" active={active === "admin"} onClick={() => onNavigate("admin")} />
+        <NavDropdown
+          label="Administrativo"
+          items={adminItems}
+          active={active}
+          isActive={adminActive}
+          onNavigate={onNavigate}
+        />
       )}
 
       {/* Spacer */}

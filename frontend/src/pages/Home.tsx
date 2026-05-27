@@ -84,19 +84,19 @@ export function Home({ onNavigate }: Props) {
               emoji="🎓"
               title="Onboarding"
               description="Checklists e acompanhamento de entrada de novos colaboradores."
-              soon
+              onClick={() => onNavigate("onboarding")}
             />
             <ModuleCard
               emoji="🎁"
-              title="Benefícios"
-              description="Gestão de benefícios ativos, vigências e elegibilidade por colaborador."
-              soon
+              title="Incentivos"
+              description="Gestão de incentivos ativos, vigências e elegibilidade por colaborador."
+              onClick={() => onNavigate("incentivos")}
             />
             <ModuleCard
               emoji="📢"
               title="Comunicados"
               description="Avisos e comunicações internas do RH para todos os colaboradores."
-              soon
+              onClick={() => onNavigate("comunicados")}
             />
             <ModuleCard
               emoji="🛡️"

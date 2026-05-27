@@ -6,23 +6,28 @@ import { Dashboard } from "./pages/Dashboard";
 import { VacationRequestPage } from "./pages/VacationRequestPage";
 import { AdminPage } from "./pages/AdminPage";
 import { MyVacationsPage } from "./pages/MyVacationsPage";
+import { OnboardingPage } from "./pages/OnboardingPage";
+import { LandingPage } from "./pages/LandingPage";
+import { ColaboradoresPage } from "./pages/ColaboradoresPage";
+import { ComunicadosPage } from "./pages/ComunicadosPage";
+import { IncentivosPage } from "./pages/IncentivosPage";
 import type { AuthUser } from "./api/types";
 import { getStoredUser, storeUser, clearUser } from "./auth";
 
-type Page = "home" | "vacations" | "request" | "my" | "admin";
+type Page = "landing" | "home" | "vacations" | "request" | "my" | "admin" | "onboarding" | "colaboradores" | "comunicados" | "incentivos";
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => getStoredUser());
   const [page, setPage] = useState<Page>(() => {
-    const u = getStoredUser();
-    return u?.role === "admin" ? "home" : "request";
+    getStoredUser();
+    return "landing";
   });
   const [dashboardFilter, setDashboardFilter] = useState("all");
 
   function handleLogin(user: AuthUser) {
     storeUser(user);
     setCurrentUser(user);
-    setPage(user.role === "admin" ? "home" : "request");
+    setPage("landing");
   }
 
   function handleLogout() {
@@ -48,6 +53,9 @@ export default function App() {
         onLogout={handleLogout}
       />
       <div className="flex-1 flex flex-col overflow-hidden">
+        {page === "landing" && (
+          <LandingPage currentUser={currentUser} onNavigate={navigate} />
+        )}
         {currentUser.role === "admin" && page === "home" && (
           <Home onNavigate={navigate} />
         )}
@@ -57,11 +65,23 @@ export default function App() {
         {currentUser.role === "admin" && page === "admin" && (
           <AdminPage currentUser={currentUser} />
         )}
+        {currentUser.role === "admin" && page === "colaboradores" && (
+          <ColaboradoresPage />
+        )}
         {page === "request" && (
           <VacationRequestPage currentUser={currentUser} />
         )}
         {page === "my" && (
           <MyVacationsPage currentUser={currentUser} />
+        )}
+        {page === "onboarding" && (
+          <OnboardingPage />
+        )}
+        {page === "comunicados" && (
+          <ComunicadosPage currentUser={currentUser} />
+        )}
+        {page === "incentivos" && (
+          <IncentivosPage currentUser={currentUser} />
         )}
       </div>
     </div>

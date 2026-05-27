@@ -16,6 +16,7 @@ interface Props {
 export function AdminPage({ currentUser }: Props) {
   const [users, setUsers] = useState<AuthUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
@@ -27,7 +28,14 @@ export function AdminPage({ currentUser }: Props) {
 
   async function load() {
     setLoading(true);
-    try { setUsers(await api.adminUsers()); } finally { setLoading(false); }
+    setLoadError(null);
+    try {
+      setUsers(await api.adminUsers());
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : "Erro ao carregar usuários");
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function handleSave(e: React.FormEvent) {
@@ -146,6 +154,21 @@ export function AdminPage({ currentUser }: Props) {
                   <tr>
                     <td colSpan={4} className="text-center py-10 text-sm" style={{ color: "var(--color-text-muted)" }}>
                       Carregando...
+                    </td>
+                  </tr>
+                )}
+                {!loading && loadError && (
+                  <tr>
+                    <td colSpan={4} className="text-center py-10" style={{ color: "var(--color-error)" }}>
+                      <p className="text-sm font-medium">Não foi possível carregar os usuários</p>
+                      <p className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>{loadError}</p>
+                      <button
+                        onClick={load}
+                        className="mt-3 px-4 py-1.5 rounded-lg text-sm font-medium text-white"
+                        style={{ backgroundColor: "var(--color-primary)" }}
+                      >
+                        Tentar novamente
+                      </button>
                     </td>
                   </tr>
                 )}
