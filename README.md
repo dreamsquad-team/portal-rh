@@ -1,4 +1,4 @@
-# HR Férias — Controle de Férias
+# Portal RH
 
 Dashboard web para o time de RH acompanhar as solicitações de férias do Jira integrado com dados de admissão do Google Sheets.
 
